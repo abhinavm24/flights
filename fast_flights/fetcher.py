@@ -1,21 +1,26 @@
 import logging
-from typing import Optional, Union, overload
+from typing import Any, Optional, Union, overload
 
-from primp import Client
-
+from .constants import FLIGHTS_SEARCH_URL
 from .exceptions import APIConnectionError, APIError
+from .integrations import Integration, get_integration
+from .parser import ParsedFlights, parse
 from .querying import Query
-from .parser import MetaList, parse
-from .integrations import Integration
+from .transport import create_browser_transport
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-URL = "https://www.google.com/travel/flights"
-
 
 @overload
-def get_flights(q: str, /, *, proxy: Optional[str] = None):
+def get_flights(
+    q: str,
+    /,
+    *,
+    proxy: Optional[str] = None,
+    integration: Optional[Union[str, Integration]] = None,
+    integration_options: Optional[dict[str, Any]] = None,
+):
     """Get flights using a str query.
 
     Examples:
@@ -24,7 +29,14 @@ def get_flights(q: str, /, *, proxy: Optional[str] = None):
 
 
 @overload
-def get_flights(q: Query, /, *, proxy: Optional[str] = None):
+def get_flights(
+    q: Query,
+    /,
+    *,
+    proxy: Optional[str] = None,
+    integration: Optional[Union[str, Integration]] = None,
+    integration_options: Optional[dict[str, Any]] = None,
+):
     """Get flights using a structured query.
 
     Example:
@@ -54,17 +66,19 @@ def get_flights(
     /,
     *,
     proxy: Optional[str] = None,
-    integration: Optional[Integration] = None,
-) -> MetaList:
+    integration: Optional[Union[str, Integration]] = None,
+    integration_options: Optional[dict[str, Any]] = None,
+) -> ParsedFlights:
     """Get flights.
 
     Args:
         q: The query string or Query object.
-        proxy: Optional proxy configuration.
-        integration: Optional integration to use for fetching data.
+        proxy: Optional proxy configuration passed to the default transport.
+        integration: Integration instance or registered integration name to use when fetching data.
+        integration_options: Keyword arguments forwarded to the integration factory when `integration` is a string.
         
     Returns:
-        MetaList: Parsed flight data.
+        ParsedFlights: Parsed flight data along with metadata.
         
     Raises:
         APIConnectionError: If there's an issue connecting to the flight data source.
@@ -73,7 +87,12 @@ def get_flights(
     """
     try:
         logger.debug("Fetching flight data...")
-        html = fetch_flights_html(q, proxy=proxy, integration=integration)
+        html = fetch_flights_html(
+            q,
+            proxy=proxy,
+            integration=integration,
+            integration_options=integration_options,
+        )
         if not html or not isinstance(html, str):
             raise APIError("Received empty or invalid response from the flight data source")
         return parse(html)
@@ -88,14 +107,16 @@ def fetch_flights_html(
     /,
     *,
     proxy: Optional[str] = None,
-    integration: Optional[Integration] = None,
+    integration: Optional[Union[str, Integration]] = None,
+    integration_options: Optional[dict[str, Any]] = None,
 ) -> str:
     """Fetch flights and get the HTML response.
 
     Args:
         q: The query string or Query object.
-        proxy: Optional proxy configuration.
-        integration: Optional integration to use for fetching data.
+        proxy: Optional proxy configuration passed to the default transport.
+        integration: Integration instance or registered integration name to use when fetching data.
+        integration_options: Keyword arguments forwarded to the integration factory when `integration` is a string.
         
     Returns:
         str: The HTML content of the flight search results.
@@ -110,62 +131,80 @@ def fetch_flights_html(
     
     try:
         if integration is None:
-            logger.debug("Using default client for fetching flight data")
-            client = Client(
-                impersonate="chrome_133",
-                impersonate_os="macos",
-                referer=True,
-                proxy=proxy,
-                cookie_store=True,
-                timeout=30,  # 30 seconds timeout
-            )
+            return _fetch_with_transport(q, proxy=proxy)
 
-            try:
-                if isinstance(q, Query):
-                    params = q.params()
-                else:
-                    if not isinstance(q, str):
-                        raise ValueError("Query must be a string or Query object")
-                    params = {"q": q}
-
-                logger.debug(f"Sending request to {URL} with params: {params}")
-                res = client.get(URL, params=params)
-                
-                # Check status code directly since primp's client might not have raise_for_status
-                if res.status_code >= 400:
-                    error_msg = f"Flight data API returned status code {res.status_code}"
-                    logger.error(error_msg)
-                    raise APIError(error_msg)
-                
-                if not res.text:
-                    error_msg = "Received empty response from the flight data source"
-                    logger.error(error_msg)
-                    raise APIError(error_msg)
-                    
-                return res.text
-                
-            except APIError:
-                # Re-raise APIError as is
+        integration_obj = _resolve_integration(
+            integration,
+            options=integration_options,
+        )
+        logger.debug(
+            "Using integration '%s' for fetching flight data",
+            integration_obj.__class__.__name__,
+        )
+        try:
+            return integration_obj.fetch_html(q)
+        except Exception as e:  # pragma: no cover - defensive
+            if isinstance(e, (APIConnectionError, APIError, ValueError)):
                 raise
-            except ValueError as e:
-                # Re-raise ValueError as is
-                logger.error(f"Invalid query: {str(e)}")
-                raise
-            except Exception as e:
-                # Handle other exceptions
-                error_msg = f"Failed to connect to flight data source: {str(e)}"
-                logger.error(error_msg)
-                raise APIConnectionError(error_msg) from e
+            logger.error("Integration error while fetching flight data: %s", e)
+            raise APIError(f"Integration failed to fetch flight data: {str(e)}") from e
 
-        else:
-            logger.debug("Using integration for fetching flight data")
-            try:
-                return integration.fetch_html(q)
-            except Exception as e:
-                logger.error(f"Integration error while fetching flight data: {str(e)}")
-                raise APIError(f"Integration failed to fetch flight data: {str(e)}") from e
-                
     except Exception as e:
         if isinstance(e, (APIConnectionError, APIError, ValueError)):
             raise
         raise APIConnectionError(f"Unexpected error while fetching flight data: {str(e)}") from e
+
+
+def _resolve_integration(
+    integration: Union[str, Integration],
+    *,
+    options: Optional[dict[str, Any]],
+) -> Integration:
+    if isinstance(integration, Integration):
+        if options:
+            logger.debug("Ignoring integration_options because an instance was provided.")
+        return integration
+
+    if isinstance(integration, str):
+        opts = options or {}
+        return get_integration(integration, **opts)
+
+    raise ValueError("integration must be an Integration instance or a registered name")
+
+
+def _fetch_with_transport(
+    q: Union[Query, str],
+    *,
+    proxy: Optional[str],
+) -> str:
+    logger.debug("Using default transport client for fetching flight data")
+    transport = create_browser_transport(proxy=proxy)
+
+    params = _query_params(q)
+    logger.debug("Sending request to %s with params: %s", FLIGHTS_SEARCH_URL, params)
+
+    try:
+        response = transport.get(FLIGHTS_SEARCH_URL, params=params)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.error("Failed to connect to flight data source: %s", exc)
+        raise APIConnectionError(f"Failed to connect to flight data source: {exc}") from exc
+
+    if not response.ok:
+        error_msg = f"Flight data API returned status code {response.status_code}"
+        logger.error(error_msg)
+        raise APIError(error_msg)
+
+    if not response.text:
+        error_msg = "Received empty response from the flight data source"
+        logger.error(error_msg)
+        raise APIError(error_msg)
+
+    return response.text
+
+
+def _query_params(q: Union[Query, str]) -> dict[str, str]:
+    if isinstance(q, Query):
+        return q.params()
+    if isinstance(q, str):
+        return {"q": q}
+    raise ValueError("Query must be a string or Query object")

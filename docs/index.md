@@ -131,6 +131,17 @@ It works! Now, I won't consider myself an "experienced Protobuf developer" but r
 I have no idea what I wrote but... it worked! And here it is, `fast-flights`.
 
 
+## Architecture & Extensibility
+
+Fast Flights now separates concerns across three layers:
+
+- builders in `fast_flights.query_builder` validate requests without touching the network,
+- integration adapters in `fast_flights.integrations` obtain HTML via a `TransportClient`, and
+- parser components in `fast_flights.parsing` turn HTML into rich `ParsedFlights` results with metadata.
+
+See [Architecture Overview](architecture.md) for guidance on adding new providers or extending the pipeline.
+
+
 ## Contributing
 
 Feel free to contribute! Though I won't be online that often, I'll try my best to answer all the whats, hows & WTFs.
@@ -144,4 +155,3 @@ Feel free to contribute! Though I won't be online that often, I'll try my best t
 - @NickJLange helped add a LICENSE file in #38
 - @Lim0H (#39) and @andreaiorio (#41) fixed `primp` client issues.
 - @kiinami (#43) added local Playwright support
-

@@ -1,104 +1,18 @@
-import rjsonc
-from selectolax.lexbor import LexborHTMLParser
+"""High-level parsing entry points for flight search responses."""
+from __future__ import annotations
 
-from .model import (
-    Airline,
-    Airport,
-    Alliance,
-    CarbonEmission,
-    Flights,
-    SingleFlight,
-    JsMetadata,
-    SimpleDatetime,
+from .parsing import (
+    ParsedFlights,
+    extract_raw_payload,
+    map_payload,
 )
 
 
-class MetaList(list):
-    metadata: JsMetadata
+def parse(html: str) -> ParsedFlights:
+    """Parse the flights HTML into domain objects and metadata."""
+
+    raw_payload = extract_raw_payload(html)
+    return map_payload(raw_payload)
 
 
-def parse(html: str) -> MetaList:
-    parser = LexborHTMLParser(html)
-
-    # find js
-    script = parser.css_first(r"script.ds\:1")
-    return parse_js(script.text())
-
-
-# Data discovery by @kftang, huge shout out!
-def parse_js(js: str):
-    json = js.split("data:", 1)[1].rsplit(",", 1)[0]
-    data = rjsonc.loads(json)
-
-    alliances = []
-    airlines = []
-
-    (alliances_data, airlines_data) = (
-        data[7][1][0],
-        data[7][1][1],
-    )
-
-    for code, name in alliances_data:
-        alliances.append(Alliance(code=code, name=name))
-
-    for code, name in airlines_data:
-        airlines.append(Airline(code=code, name=name))
-
-    meta = JsMetadata(alliances=alliances, airlines=airlines)
-
-    flights = MetaList()
-    for k in data[3][0]:
-        flight = k[0]
-        price = k[1][0][1]
-
-        typ = flight[0]
-        airlines = flight[1]
-
-        sg_flights = []
-
-        # multiple flights!
-        for single_flight in flight[2]:
-            from_airport = Airport(code=single_flight[3], name=single_flight[4])
-            to_airport = Airport(code=single_flight[6], name=single_flight[5])
-            departure_time = single_flight[8]
-            departure_date = single_flight[20]
-            departure = SimpleDatetime(date=departure_date, time=departure_time)
-
-            arrival_time = single_flight[10]
-            arrival_date = single_flight[21]
-            arrival = SimpleDatetime(date=arrival_date, time=arrival_time)
-
-            plane_type = single_flight[17]
-
-            duration = single_flight[11]
-
-            sg_flights.append(
-                SingleFlight(
-                    from_airport=from_airport,
-                    to_airport=to_airport,
-                    departure=departure,
-                    arrival=arrival,
-                    duration=duration,
-                    plane_type=plane_type,
-                )
-            )
-
-        # some additional data
-        extras = flight[22]
-        carbon_emission = extras[7]
-        typical_carbon_emission = extras[8]
-
-        flights.append(
-            Flights(
-                type=typ,
-                price=price,
-                airlines=airlines,
-                flights=sg_flights,
-                carbon=CarbonEmission(
-                    typical_on_route=typical_carbon_emission, emission=carbon_emission
-                ),
-            )
-        )
-
-    flights.metadata = meta
-    return flights
+__all__ = ["ParsedFlights", "parse"]

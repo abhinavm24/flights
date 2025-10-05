@@ -1,16 +1,7 @@
 # :material-filter: Filters
 Filters are used to generate the `tfs` query parameter. In short, you make queries with filters.
 
-With the new API, there's no need to use the `create_filter()` function, as you can use `get_flights()` and add the filter parameters directly.
-
-```python
-get_flights(..., fetch_mode="fallback")
-
-# is equivalent to:
-
-filter = create_filter(...)
-get_flights_from_filter(filter, mode="fallback")
-```
+You can create a query with `create_query()` and pass it to `get_flights()` (optionally with an integration name if you want to use a provider like Bright Data).
 
 ## FlightData
 This specifies the general flight data: the date, departure & arrival airport, and the maximum number of stops (untested).
@@ -68,12 +59,12 @@ passengers = Passengers(
 ```
 
 ## Example
-Here's a simple example on how to create a filter:
+Here's a simple example on how to create a query:
 
 ```python
-filter: TFSData = create_filter(
-    flight_data=[
-        FlightData(
+query = create_query(
+    flights=[
+        FlightQuery(
             date="2025-01-01",
             from_airport="TPE",
             to_airport="MYJ",
@@ -85,6 +76,6 @@ filter: TFSData = create_filter(
     max_stops=1,
 )
 
-filter.as_b64()  # Base64-encoded (bytes)
-filter.to_string()  # Serialize to string
+query.to_str()  # Base64-encoded payload used for ?tfs
+query.url()     # Full Google Flights URL (handy for debugging)
 ```

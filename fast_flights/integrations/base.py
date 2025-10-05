@@ -2,7 +2,7 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import Union, Optional
+from typing import Optional, Protocol, Union
 
 from ..exceptions import APIConnectionError, APIError
 from ..querying import Query
@@ -17,13 +17,35 @@ except ModuleNotFoundError:
     logger.debug("python-dotenv not installed, skipping .env file loading")
 
 
+
+class ConfigSource(Protocol):
+    """A configuration provider for integrations."""
+
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        ...
+
+
+class EnvironmentConfig:
+    """Default configuration provider backed by environment variables."""
+
+    __slots__ = ("_environ",)
+
+    def __init__(self, environ: Optional[dict[str, str]] = None) -> None:
+        self._environ = environ if environ is not None else os.environ
+
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        value = self._environ.get(key, default)
+        if value is None:
+            logger.error("Required environment variable not found: %r", key)
+        return value
+
+
 class Integration(ABC):
-    """Abstract base class for flight data integrations.
-    
-    This class defines the interface that all flight data integrations must implement.
-    Subclasses should implement the fetch_html method to retrieve flight data.
-    """
-    
+    """Abstract base class for flight data integrations."""
+
+    def __init__(self, *, config: Optional[ConfigSource] = None) -> None:
+        self._config = config or EnvironmentConfig()
+
     @abstractmethod
     def fetch_html(self, q: Union[Query, str], /) -> str:
         """Fetch the flights page HTML from a query.
@@ -41,6 +63,27 @@ class Integration(ABC):
         """
         raise NotImplementedError("Subclasses must implement this method")
 
+    def get_setting(self, key: str, /, *, default: Optional[str] = None) -> Optional[str]:
+        """Retrieve an optional configuration value for the integration."""
+
+        return self._config.get(key, default)
+
+    def require_setting(
+        self,
+        key: str,
+        /,
+        *,
+        default: Optional[str] = None,
+        label: Optional[str] = None,
+    ) -> str:
+        """Retrieve a required configuration value or raise a ValueError."""
+
+        value = self.get_setting(key, default=default)
+        if value is None:
+            descriptor = label or key
+            raise ValueError(f"Missing required configuration value: {descriptor}")
+        return value
+
 
 def get_env(k: str, /, default: Optional[str] = None) -> str:
     """Get environment variable with optional default value.
@@ -56,9 +99,7 @@ def get_env(k: str, /, default: Optional[str] = None) -> str:
     Raises:
         OSError: If the environment variable is not found and no default is provided.
     """
-    value = os.environ.get(k, default)
+    value = EnvironmentConfig().get(k, default)
     if value is None:
-        error_msg = f"Required environment variable not found: {k!r}"
-        logger.error(error_msg)
-        raise OSError(error_msg)
+        raise OSError(f"Required environment variable not found: {k!r}")
     return value

@@ -12,7 +12,7 @@ query = create_query(
     ],
     seat="economy",
     trip="one-way",
-    passengers=Passengers(adults=1),
+    passengers=Passengers(adults=2),
     language="en-US",
 )
 

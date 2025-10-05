@@ -14,9 +14,9 @@ If you're unfamiliar with those 3-letter airport codes (such as "MYJ" for Matsuy
 taipei = search_airports("taipei")[0]
 los = search_airports("los angeles")[0]
 
-filter = create_filter(
-    flight_data=[
-        FlightData(
+query = create_query(
+    flights=[
+        FlightQuery(
             date="2025-01-01",
             from_airport=taipei,
             to_airport=los

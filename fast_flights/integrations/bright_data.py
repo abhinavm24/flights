@@ -2,12 +2,11 @@
 import logging
 from typing import Optional, Union
 
-from primp import Client
-
-from .base import Integration, get_env
+from .base import ConfigSource, Integration
+from ..constants import FLIGHTS_SEARCH_URL
 from ..querying import Query
-from ..fetcher import URL
 from ..exceptions import APIConnectionError, APIError
+from ..transport import PrimpTransportClient, TransportClient
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -30,7 +29,7 @@ class BrightData(Integration):
     Raises:
         ValueError: If required configuration is missing.
     """
-    __slots__ = ("api_url", "zone", "client")
+    __slots__ = ("api_url", "zone", "_transport", "_auth_header")
 
     def __init__(
         self,
@@ -38,25 +37,34 @@ class BrightData(Integration):
         api_key: Optional[str] = None,
         api_url: str = DEFAULT_API_URL,
         zone: str = DEFAULT_DATA_SERP_ZONE,
+        transport: Optional[TransportClient] = None,
+        config: Optional[ConfigSource] = None,
     ):
         """Initialize the BrightData integration."""
-        self.api_url = api_url or get_env("BRIGHT_DATA_API_URL")
-        if not self.api_url:
-            raise ValueError("BrightData API URL is required")
-            
-        self.zone = zone or get_env("BRIGHT_DATA_ZONE")
-        if not self.zone:
-            raise ValueError("BrightData zone is required")
-            
-        api_key = api_key or get_env("BRIGHT_DATA_API_KEY")
-        if not api_key:
-            raise ValueError("BrightData API key is required")
-        
-        logger.debug("Initializing BrightData integration")
-        self.client = Client(
-            headers={"Authorization": f"Bearer {api_key}"},
-            timeout=30,  # 30 seconds timeout
+        super().__init__(config=config)
+
+        self.api_url = api_url or self.require_setting(
+            "BRIGHT_DATA_API_URL",
+            default=DEFAULT_API_URL,
+            label="BrightData API URL",
         )
+        self.zone = zone or self.require_setting(
+            "BRIGHT_DATA_ZONE",
+            label="BrightData zone",
+        )
+        api_key = api_key or self.require_setting(
+            "BRIGHT_DATA_API_KEY",
+            label="BrightData API key",
+        )
+
+        logger.debug("Initializing BrightData integration")
+        self._auth_header = {"Authorization": f"Bearer {api_key}"}
+        if transport is None:
+            transport = PrimpTransportClient(
+                default_headers=dict(self._auth_header),
+                timeout=30,
+            )
+        self._transport = transport
 
     def fetch_html(self, q: Union[Query, str], /) -> str:
         """Fetch flight data HTML using BrightData API.
@@ -78,7 +86,7 @@ class BrightData(Integration):
         try:
             # Prepare the request payload
             if isinstance(q, str):
-                url = f"{URL}?q={q}"
+                url = f"{FLIGHTS_SEARCH_URL}?q={q}"
             elif isinstance(q, Query):
                 url = q.url()
             else:
@@ -93,12 +101,12 @@ class BrightData(Integration):
             logger.debug(f"Request payload: {payload}")
             
             # Make the API request
-            response = self.client.post(
+            response = self._transport.post(
                 self.api_url,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers={**self._auth_header, "Content-Type": "application/json"},
             )
-            
+
             # Check for HTTP errors
             if not response.ok:
                 error_msg = f"BrightData API returned status code {response.status_code}"
