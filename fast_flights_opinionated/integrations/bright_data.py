@@ -49,9 +49,15 @@ class BrightData(Integration):
             default=DEFAULT_API_URL,
             label="BrightData API URL",
         )
-        self.zone = zone or self.require_setting(
-            "BRIGHT_DATA_ZONE",
-            label="BrightData zone",
+        # Support both BRIGHT_DATA_ZONE and BRIGHT_DATA_SERP_ZONE for backward compatibility
+        self.zone = (
+            zone
+            or self.config.get("BRIGHT_DATA_ZONE")
+            or self.config.get("BRIGHT_DATA_SERP_ZONE")
+            or self.require_setting(
+                "BRIGHT_DATA_ZONE",
+                label="BrightData zone (set BRIGHT_DATA_ZONE or BRIGHT_DATA_SERP_ZONE)",
+            )
         )
         api_key = api_key or self.require_setting(
             "BRIGHT_DATA_API_KEY",
