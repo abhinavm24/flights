@@ -1,9 +1,12 @@
+from datetime import date, timedelta
+
 from fast_flights import FlightQuery, Passengers, create_query
 from fast_flights.pb.flights_pb2 import Passenger as PbPassenger, Seat, Trip
 
 
 def test_create_query_to_proto_roundtrip():
-    flight = FlightQuery(date="2025-07-15", from_airport="JFK", to_airport="LAX")
+    departure = (date.today() + timedelta(days=30)).isoformat()
+    flight = FlightQuery(date=departure, from_airport="JFK", to_airport="LAX")
     passengers = Passengers(adults=2, children=1, infants_in_seat=1)
 
     query = create_query(
@@ -21,11 +24,12 @@ def test_create_query_to_proto_roundtrip():
     assert info.trip == Trip.ONE_WAY
     assert info.data[0].from_airport.airport == "JFK"
     assert info.data[0].to_airport.airport == "LAX"
-    assert info.data[0].date == "2025-07-15"
+    assert info.data[0].date == departure
 
-    assert info.passengers.count(PbPassenger.ADULT) == 2
-    assert info.passengers.count(PbPassenger.CHILD) == 1
-    assert info.passengers.count(PbPassenger.INFANT_IN_SEAT) == 1
+    passenger_values = list(info.passengers)
+    assert passenger_values.count(PbPassenger.ADULT) == 2
+    assert passenger_values.count(PbPassenger.CHILD) == 1
+    assert passenger_values.count(PbPassenger.INFANT_IN_SEAT) == 1
 
     params = query.params()
     assert params["hl"] == "en-US"
