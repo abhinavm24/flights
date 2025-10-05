@@ -131,23 +131,17 @@ def fetch_flights_html(
     
     try:
         if integration is None:
-            return _fetch_with_transport(q, proxy=proxy)
+            return _fetch_with_default_and_fallback(
+                q,
+                proxy=proxy,
+                integration_options=integration_options,
+            )
 
-        integration_obj = _resolve_integration(
+        return _fetch_with_integration(
+            q,
             integration,
             options=integration_options,
         )
-        logger.debug(
-            "Using integration '%s' for fetching flight data",
-            integration_obj.__class__.__name__,
-        )
-        try:
-            return integration_obj.fetch_html(q)
-        except Exception as e:  # pragma: no cover - defensive
-            if isinstance(e, (APIConnectionError, APIError, ValueError)):
-                raise
-            logger.error("Integration error while fetching flight data: %s", e)
-            raise APIError(f"Integration failed to fetch flight data: {str(e)}") from e
 
     except Exception as e:
         if isinstance(e, (APIConnectionError, APIError, ValueError)):
@@ -200,6 +194,53 @@ def _fetch_with_transport(
         raise APIError(error_msg)
 
     return response.text
+
+
+def _fetch_with_default_and_fallback(
+    q: Union[Query, str],
+    *,
+    proxy: Optional[str],
+    integration_options: Optional[dict[str, Any]],
+) -> str:
+    try:
+        return _fetch_with_transport(q, proxy=proxy)
+    except (APIConnectionError, APIError) as exc:
+        logger.warning(
+            "Default transport failed (%s); attempting BrightData fallback.",
+            exc,
+        )
+        try:
+            return _fetch_with_integration(
+                q,
+                "bright_data",
+                options=integration_options,
+            )
+        except Exception as fallback_exc:  # pragma: no cover - defensive
+            logger.error("BrightData fallback failed: %s", fallback_exc)
+            raise fallback_exc from exc
+
+
+def _fetch_with_integration(
+    q: Union[Query, str],
+    integration: Union[str, Integration],
+    *,
+    options: Optional[dict[str, Any]],
+) -> str:
+    integration_obj = _resolve_integration(
+        integration,
+        options=options,
+    )
+    logger.debug(
+        "Using integration '%s' for fetching flight data",
+        integration_obj.__class__.__name__,
+    )
+    try:
+        return integration_obj.fetch_html(q)
+    except Exception as e:  # pragma: no cover - defensive
+        if isinstance(e, (APIConnectionError, APIError, ValueError)):
+            raise
+        logger.error("Integration error while fetching flight data: %s", e)
+        raise APIError(f"Integration failed to fetch flight data: {str(e)}") from e
 
 
 def _query_params(q: Union[Query, str]) -> dict[str, str]:

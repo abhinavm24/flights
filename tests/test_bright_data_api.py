@@ -5,10 +5,10 @@ from typing import Any, Mapping
 
 import pytest
 
-from fast_flights import APIError, FlightQuery, Passengers, create_query
-from fast_flights.constants import FLIGHTS_SEARCH_URL
-from fast_flights.integrations.bright_data import BrightData
-from fast_flights.transport import TransportResponse
+from fast_flights_opinionated import APIError, FlightQuery, Passengers, create_query
+from fast_flights_opinionated.constants import FLIGHTS_SEARCH_URL
+from fast_flights_opinionated.integrations.bright_data import BrightData
+from fast_flights_opinionated.transport import TransportResponse
 
 
 class StubTransport:

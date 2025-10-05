@@ -1,3 +1,6 @@
+**Note:** This is a fork of the original [fast-flights](https://github.com/AWeirdDev/flights) library, with added features.
+
+
 # `dev`
 You're viewing the dev branch.
 
