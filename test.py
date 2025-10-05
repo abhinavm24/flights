@@ -1,4 +1,4 @@
-from fast_flights_opinionated import FlightQuery, Passengers, create_query, get_flights
+from fast_flights import FlightQuery, Passengers, create_query, get_flights
 from pprint import pprint
 import datetime
 

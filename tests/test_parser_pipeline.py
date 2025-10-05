@@ -1,6 +1,6 @@
 import json
 
-from fast_flights_opinionated.parser import ParsedFlights, parse
+from fast_flights.parser import ParsedFlights, parse
 
 
 def _build_raw_payload():

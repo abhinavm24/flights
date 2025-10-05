@@ -2,9 +2,9 @@ from datetime import date, timedelta
 
 import pytest
 
-from fast_flights_opinionated import FlightQuery, Passengers, create_query
-from fast_flights_opinionated.exceptions import FlightQueryError
-from fast_flights_opinionated.pb.flights_pb2 import Passenger as PbPassenger, Seat, Trip
+from fast_flights import FlightQuery, Passengers, create_query
+from fast_flights.exceptions import FlightQueryError
+from fast_flights.pb.flights_pb2 import Passenger as PbPassenger, Seat, Trip
 
 
 def test_create_query_to_proto_roundtrip():

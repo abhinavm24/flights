@@ -3,7 +3,7 @@ import pytest
 from enum import Enum
 from typing import Literal
 from datetime import datetime, timedelta
-from fast_flights_opinionated.validation import (
+from fast_flights.validation import (
     validate_enum_value,
     validate_language,
     validate_currency,
@@ -14,7 +14,7 @@ from fast_flights_opinionated.validation import (
     AirportCodeError,
     DateFormatError
 )
-from fast_flights_opinionated.types import Language, SeatType, TripType, Currency
+from fast_flights.types import Language, SeatType, TripType, Currency
 
 
 def test_validate_enum_value_with_enum():

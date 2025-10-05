@@ -1,13 +1,13 @@
-from fast_flights_opinionated.exceptions import APIConnectionError
-from fast_flights_opinionated.fetcher import fetch_flights_html
-from fast_flights_opinionated.integrations.base import Integration
+from fast_flights.exceptions import APIConnectionError
+from fast_flights.fetcher import fetch_flights_html
+from fast_flights.integrations.base import Integration
 
 
 def test_fetch_flights_html_falls_back_to_bright_data(monkeypatch):
     def fail_fetch(q, *, proxy=None):
         raise APIConnectionError("primary transport failed")
 
-    monkeypatch.setattr("fast_flights_opinionated.fetcher._fetch_with_transport", fail_fetch)
+    monkeypatch.setattr("fast_flights.fetcher._fetch_with_transport", fail_fetch)
 
     seen: dict[str, object] = {"options": None, "queries": []}
 
@@ -24,7 +24,7 @@ def test_fetch_flights_html_falls_back_to_bright_data(monkeypatch):
         seen["options"] = options
         return DummyIntegration()
 
-    monkeypatch.setattr("fast_flights_opinionated.fetcher._resolve_integration", fake_resolve)
+    monkeypatch.setattr("fast_flights.fetcher._resolve_integration", fake_resolve)
 
     result = fetch_flights_html(
         "Flights from TPE to MYJ",

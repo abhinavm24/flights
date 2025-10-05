@@ -184,8 +184,8 @@ wheels = [
 ]
 
 [[package]]
-name = "fast-flights-opinionated"
-version = "0.1.0"
+name = "fast-flights"
+version = "3.0rc1"
 source = { editable = "." }
 dependencies = [
     { name = "primp" },

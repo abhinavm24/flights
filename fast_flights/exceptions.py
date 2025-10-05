@@ -1,4 +1,4 @@
-"""Custom exceptions for the fast_flights_opinionated package."""
+"""Custom exceptions for the fast_flights package."""
 
 class FastFlightsError(Exception):
     """Base exception for all fast_flights exceptions."""

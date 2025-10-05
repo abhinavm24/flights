@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from fast_flights_opinionated import APIError, FlightQuery, Passengers, create_query, get_flights
-from fast_flights_opinionated.integrations import register_integration
-from fast_flights_opinionated.integrations.base import Integration
-from fast_flights_opinionated.integrations import registry as integrations_registry
+from fast_flights import APIError, FlightQuery, Passengers, create_query, get_flights
+from fast_flights.integrations import register_integration
+from fast_flights.integrations.base import Integration
+from fast_flights.integrations import registry as integrations_registry
 
 
 FIXTURE_PATH = Path(__file__).parent / "data" / "sample_flights_response.html"

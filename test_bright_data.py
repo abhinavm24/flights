@@ -6,7 +6,7 @@ from typing import Optional
 
 import pytest
 
-from fast_flights_opinionated import FlightQuery, Passengers, create_query, get_flights
+from fast_flights import FlightQuery, Passengers, create_query, get_flights
 
 
 BRIGHT_DATA_API_KEY = os.environ.get("BRIGHT_DATA_API_KEY")
@@ -18,7 +18,7 @@ if BRIGHT_DATA_API_KEY is None and "PYTEST_CURRENT_TEST" in os.environ:
     )
 
 
-def build_query() -> "fast_flights_opinionated.query_models.Query":
+def build_query() -> "fast_flights.query_models.Query":
     return create_query(
         flights=[
             FlightQuery(
