@@ -6,8 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from fast_flights import FlightQuery, Passengers, create_query, get_flights
+from fast_flights import APIError, FlightQuery, Passengers, create_query, get_flights
+from fast_flights.integrations import register_integration
 from fast_flights.integrations.base import Integration
+from fast_flights.integrations import registry as integrations_registry
 
 
 FIXTURE_PATH = Path(__file__).parent / "data" / "sample_flights_response.html"
@@ -73,3 +75,42 @@ def test_get_flights_accepts_string_queries_with_recorded_response():
     assert len(results) == 1
     assert results[0].airlines == ["JL"]
     assert results[0].flights[0].to_airport.code == "TPE"
+
+
+def test_get_flights_errors_when_integration_returns_empty_html():
+    integration = FixtureIntegration(html="")
+    query = _build_sample_query()
+
+    with pytest.raises(APIError):
+        get_flights(query, integration=integration)
+
+
+def test_get_flights_resolves_registered_integration_with_options(monkeypatch):
+    registry_copy = dict(integrations_registry._REGISTRY._registry)
+    monkeypatch.setattr(
+        integrations_registry._REGISTRY,
+        "_registry",
+        registry_copy,
+        raising=False,
+    )
+
+    seen_kwargs: list[dict[str, str]] = []
+
+    def factory(*, html: str, marker: str) -> Integration:
+        seen_kwargs.append({"html": html, "marker": marker})
+        return FixtureIntegration(html=html)
+
+    register_integration("fixture", factory)
+
+    query = _build_sample_query()
+    html = _load_recorded_html()
+
+    results = get_flights(
+        query,
+        integration="fixture",
+        integration_options={"html": html, "marker": "option-passed"},
+    )
+
+    assert seen_kwargs == [{"html": html, "marker": "option-passed"}]
+    assert len(results) == 1
+    assert results[0].airlines == ["JL"]

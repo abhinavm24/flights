@@ -22,13 +22,19 @@ def flight_query_to_proto(flight: "FlightQuery") -> FlightData:
     max_stops = getattr(flight, "max_stops", None)
     normalized_date = getattr(flight, "normalized_date", getattr(flight, "_normalized_date", ""))
 
-    return FlightData(
+    flight_data = FlightData(
         date=normalized_date,
         from_airport=Airport(airport=getattr(flight, "from_airport")),
         to_airport=Airport(airport=getattr(flight, "to_airport")),
-        max_stops=max_stops if max_stops is not None else None,
-        airlines=airlines if airlines else None,
     )
+
+    if max_stops is not None:
+        flight_data.max_stops = max_stops
+
+    if airlines:
+        flight_data.airlines.extend(airlines)
+
+    return flight_data
 
 
 def passengers_to_proto(passengers: "Passengers") -> list[PbPassenger]:

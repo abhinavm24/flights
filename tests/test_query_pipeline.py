@@ -38,7 +38,8 @@ def test_create_query_to_proto_roundtrip():
 
 
 def test_query_flight_data_property_matches_proto():
-    flight = FlightQuery(date="2025-12-01", from_airport="SFO", to_airport="ORD")
+    future_date = date.today() + timedelta(days=30)
+    flight = FlightQuery(date=future_date.isoformat(), from_airport="SFO", to_airport="ORD")
     query = create_query(flights=[flight], language="en-US", currency="USD")
 
     proto = query.to_proto()
@@ -56,3 +57,12 @@ def test_flight_query_to_proto_accessor():
     assert proto_flight.date == "2026-01-05"
     assert proto_flight.from_airport.airport == "CDG"
     assert proto_flight.to_airport.airport == "JFK"
+
+
+def test_flight_query_to_proto_omits_optional_fields_when_missing():
+    flight = FlightQuery(date="2026-06-01", from_airport="SFO", to_airport="NRT")
+
+    proto = flight.to_proto()
+
+    assert not proto.HasField("max_stops")
+    assert list(proto.airlines) == []

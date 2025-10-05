@@ -6,6 +6,7 @@ from typing import Any, Mapping
 import pytest
 
 from fast_flights import APIError, FlightQuery, Passengers, create_query
+from fast_flights.constants import FLIGHTS_SEARCH_URL
 from fast_flights.integrations.bright_data import BrightData
 from fast_flights.transport import TransportResponse
 
@@ -64,6 +65,34 @@ def test_bright_data_fetch_html_posts_expected_payload():
         {
             "url": "https://bright.example/data",
             "json": {"url": query.url(), "zone": "zone-1"},
+            "headers": {
+                "Authorization": "Bearer secret",
+                "Content-Type": "application/json",
+            },
+        }
+    ]
+
+
+def test_bright_data_fetch_html_encodes_string_query():
+    response = TransportResponse(status_code=200, text="<html>ok</html>", ok=True)
+    transport = StubTransport(response)
+    integration = BrightData(
+        api_key="secret",
+        api_url="https://bright.example/data",
+        zone="zone-1",
+        transport=transport,
+    )
+
+    description = "Flights from TPE to MYJ"
+    integration.fetch_html(description)
+
+    assert transport.calls == [
+        {
+            "url": "https://bright.example/data",
+            "json": {
+                "url": f"{FLIGHTS_SEARCH_URL}?q=Flights+from+TPE+to+MYJ",
+                "zone": "zone-1",
+            },
             "headers": {
                 "Authorization": "Bearer secret",
                 "Content-Type": "application/json",

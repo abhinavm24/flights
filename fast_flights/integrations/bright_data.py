@@ -1,5 +1,6 @@
 """BrightData integration for fetching flight data."""
 import logging
+from urllib.parse import quote_plus
 from typing import Optional, Union
 
 from .base import ConfigSource, Integration
@@ -86,7 +87,8 @@ class BrightData(Integration):
         try:
             # Prepare the request payload
             if isinstance(q, str):
-                url = f"{FLIGHTS_SEARCH_URL}?q={q}"
+                encoded_query = quote_plus(q)
+                url = f"{FLIGHTS_SEARCH_URL}?q={encoded_query}"
             elif isinstance(q, Query):
                 url = q.url()
             else:
