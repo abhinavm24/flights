@@ -2,7 +2,7 @@
 import re
 from datetime import datetime
 from enum import Enum
-from typing import Any, List, Literal, Optional, Tuple, Type, TypeVar, Union, get_args, get_origin
+from typing import Any, Callable, List, Literal, Optional, Tuple, Type, TypeVar, Union, get_args, get_origin
 from .exceptions import (
     AirportCodeError,
     DateFormatError,
@@ -56,6 +56,28 @@ def validate_enum_value(value: Any, enum_type: Type[T], field_name: str) -> T:
     raise FlightQueryError(
         f"Expected {field_name} to be of type {enum_type.__name__}, got {type(value).__name__}"
     )
+
+
+def ensure_instance(
+    value: Any | None,
+    expected_type: Type[T],
+    *,
+    field_name: str,
+    default_factory: Callable[[], T] | None = None,
+) -> T:
+    """Ensure a value is an instance of the expected type, optionally providing a default."""
+
+    if value is None:
+        if default_factory is not None:
+            return default_factory()
+        raise FlightQueryError(f"{field_name} is required")
+
+    if not isinstance(value, expected_type):
+        raise FlightQueryError(
+            f"{field_name} must be an instance of {expected_type.__name__}"
+        )
+
+    return value
 
 def validate_airport_code(code: str) -> str:
     """Validate and normalize an airport IATA code.
@@ -188,7 +210,7 @@ def validate_flight_query(
             f"Origin and destination airports cannot be the same: {from_airport_norm}"
         )
     
-    # Validate date is in the future
+    # Validate date is not in the past
     normalized_date = validate_and_normalize_date(date)
     today = datetime.now().date()
     if isinstance(normalized_date, str):
@@ -319,7 +341,12 @@ def validate_currency(currency: Union[str, Currency, None]) -> str:
     return _validate_literal(currency_str, Currency, 'currency code')
 
 
-def validate_flights_list(flights: List[Any], expected_type: Type[T]) -> List[T]:
+def validate_flights_list(
+    flights: List[Any],
+    expected_type: Type[T],
+    *,
+    trip: Optional[str] = None,
+) -> List[T]:
     """Validate that a list contains only instances of the expected type.
         flights: The list to validate.
         expected_type: The expected type of list elements.
@@ -332,11 +359,17 @@ def validate_flights_list(flights: List[Any], expected_type: Type[T]) -> List[T]
     """
     if not isinstance(flights, (list, tuple)) or not flights:
         raise FlightQueryError("At least one flight segment is required")
-    
+
     if not all(isinstance(f, expected_type) for f in flights):
         type_name = expected_type.__name__
         raise FlightQueryError(f"All flight segments must be {type_name} instances")
-    
+
+    if trip == "round-trip" and len(flights) < 2:
+        raise FlightQueryError(
+            "round-trip requires at least 2 FlightQuery segments, "
+            f"but got {len(flights)}"
+        )
+
     return flights  # type: ignore
 
 

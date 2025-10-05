@@ -10,6 +10,7 @@ from .query_mapper import resolve_currency, resolve_language
 from .query_models import Query
 from .types import Currency, Language, SeatType, TripType
 from .validation import (
+    ensure_instance,
     validate_airlines,
     validate_and_normalize_date,
     validate_flight_query,
@@ -109,18 +110,20 @@ def create_query(
 ) -> Query:
     """Create a normalized Query domain object."""
 
-    if passengers is None:
-        passengers = Passengers()
-    if not isinstance(passengers, Passengers):
-        raise ValueError("passengers must be an instance of Passengers")
+    passengers = ensure_instance(
+        passengers,
+        Passengers,
+        field_name="passengers",
+        default_factory=Passengers,
+    )
 
     language_code = validate_language(language) if language else ""
     currency_code = validate_currency(currency) if currency else ""
 
-    validate_flights_list(flights, FlightQuery)
-
     seat_value = validate_seat_type(seat)
     trip_value = validate_trip_type(trip)
+
+    validate_flights_list(flights, FlightQuery, trip=trip_value)
 
     if max_stops is not None:
         normalized_max_stops = validate_max_stops(max_stops)
