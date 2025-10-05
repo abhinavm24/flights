@@ -102,13 +102,15 @@ def create_query(
     flights: list[FlightQuery],
     seat: SeatType = "economy",
     trip: TripType = "one-way",
-    passengers: Passengers = Passengers(),
+    passengers: Passengers | None = None,
     language: Union[str, Literal[""], Language] = "en-US",
     currency: Union[str, Literal[""], Currency] = "USD",
     max_stops: Optional[int] = None,
 ) -> Query:
     """Create a normalized Query domain object."""
 
+    if passengers is None:
+        passengers = Passengers()
     if not isinstance(passengers, Passengers):
         raise ValueError("passengers must be an instance of Passengers")
 
