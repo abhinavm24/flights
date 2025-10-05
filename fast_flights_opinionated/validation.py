@@ -1,4 +1,4 @@
-"""Input validation utilities for fast_flights package."""
+"""Input validation utilities for fast_flights_opinionated package."""
 import re
 from datetime import datetime
 from enum import Enum
