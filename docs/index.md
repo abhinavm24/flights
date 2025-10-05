@@ -135,9 +135,9 @@ I have no idea what I wrote but... it worked! And here it is, `fast-flights`.
 
 Fast Flights now separates concerns across three layers:
 
-- builders in `fast_flights.query_builder` validate requests without touching the network,
-- integration adapters in `fast_flights.integrations` obtain HTML via a `TransportClient`, and
-- parser components in `fast_flights.parsing` turn HTML into rich `ParsedFlights` results with metadata.
+- builders in `fast_flights_opinionated.query_builder` validate requests without touching the network,
+- integration adapters in `fast_flights_opinionated.integrations` obtain HTML via a `TransportClient`, and
+- parser components in `fast_flights_opinionated.parsing` turn HTML into rich `ParsedFlights` results with metadata.
 
 See [Architecture Overview](architecture.md) for guidance on adding new providers or extending the pipeline.
 

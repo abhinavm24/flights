@@ -13,7 +13,7 @@ Bright data:
 
 ```python
 from fast_flights import get_flights
-from fast_flights.integrations import BrightData
+from fast_flights_opinionated.integrations import BrightData
 
 get_flights(..., integration=BrightData())
 ```
