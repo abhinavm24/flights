@@ -25,6 +25,9 @@ dependencies = [
   "rjsonc"
 ]
 
+[project.scripts]
+flights-cli = "fast_flights_opinionated.cli:main"
+
 [project.optional-dependencies]
 local = [
     "playwright"
